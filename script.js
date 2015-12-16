@@ -65,15 +65,14 @@ document.addEventListener('DOMContentLoaded', function() {
     //--------------------- game state ------------------------
 
     var isWhiteTurn = true,
-        movesCount = 0,
         moveMode = MoveModes.PIECE_CHOOSE,
         isGameContinues = true,
-        choosenPiece,
+        choosen,
         check,
         whiteCatches = [],
         blackCatches = [];
 
-    //---------------------- methods --------------------------
+    //---------------------- render --------------------------
 
     var renderField = function() {
         var html = '',
@@ -84,17 +83,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             for (var x = 1; x <= 8; x++) {
                 var piecesRow,
-                    pieceName;
+                    pieceType;
 
                 rowHtml += '<td id="cell_' + x + '_' + y + '" data-x="' + x + '" data-y="' + y + '" class="cell">';
 
-                //REFACTOR IT TO ONE LINE
-                if ((piecesRow = piecesParams[y - 1]) && (pieceName = piecesRow[x - 1])) {
-                    rowHtml += '<div data-type="' + pieceName + '" data-color="white" data-moved="0" class="piece piece_white">' + pieceName + '</div>'
+                if ((piecesRow = piecesParams[y - 1]) && (pieceType = piecesRow[x - 1])) {
+                    rowHtml += getPieceHtml(pieceType, 'white');
                 }
 
-                if ((piecesRow = piecesParams[8 - y]) && (pieceName = piecesRow[x - 1])) {
-                    rowHtml += '<div data-type="' + pieceName + '" data-color="black" data-moved="0" class="piece piece_black">' + pieceName + '</div>'
+                if ((piecesRow = piecesParams[8 - y]) && (pieceType = piecesRow[x - 1])) {
+                    rowHtml += getPieceHtml(pieceType, 'black');
                 }
 
                 rowHtml += '</td>';
@@ -107,13 +105,17 @@ document.addEventListener('DOMContentLoaded', function() {
         field.getElementsByTagName('tbody')[0].innerHTML = html;
     };
 
+    var getPieceHtml = function(type, color) {
+        return '<div data-type="' + type + '" data-color="' + color + '" data-moved="0" class="piece piece_' + color + '">' + type + '</div>';
+    };
+
     var renderTurnInfo = function() {
         document.getElementById('turn_info').innerHTML = (isWhiteTurn ? 'Whites turn' : 'Blacks turn');
     };
 
     var renderCatches = function() {
         document.getElementById('catches_info').innerHTML = getCatchesHtml(whiteCatches, 'White') + getCatchesHtml(blackCatches, 'Black');
-    }
+    };
 
     var getCatchesHtml = function(catches, player) {
         var html = '';
@@ -127,7 +129,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         return html;
-    }
+    };
+
+    //-------------- click handler ----------------
 
     var setHandlers = function() {
         var cells = field.getElementsByClassName('cell');
@@ -141,93 +145,96 @@ document.addEventListener('DOMContentLoaded', function() {
                     kingDanger,
                     opponentKingDanger;
 
-                if (moveMode == MoveModes.PIECE_CHOOSE) {
+                if (isGameContinues) {
 
-                    piece = cell.getElementsByClassName('piece')[0],
-                    pieceClass = (isWhiteTurn ? 'piece_white' : 'piece_black');
+                    if (moveMode == MoveModes.PIECE_CHOOSE) {
 
-                    if (piece && piece.classList.contains(pieceClass)) {
-                        cell.classList.add('cell_choosen');
+                        piece = cell.getElementsByClassName('piece')[0],
+                        pieceClass = (isWhiteTurn ? 'piece_white' : 'piece_black');
 
-                        moveMode = MoveModes.CELL_CHOOSE;
-                        choosen = {
-                            piece: piece,
-                            cell: cell
-                        };
-                    }
+                        if (piece && piece.classList.contains(pieceClass)) {
+                            cell.classList.add('cell_choosen');
 
-                } else if (moveMode == MoveModes.CELL_CHOOSE) {
+                            moveMode = MoveModes.CELL_CHOOSE;
+                            choosen = {
+                                piece: piece,
+                                cell: cell
+                            };
+                        }
 
-                    if (cell.classList.contains('cell_choosen')) {
+                    } else if (moveMode == MoveModes.CELL_CHOOSE) {
 
-                        cell.classList.remove('cell_choosen');
-                        moveMode = MoveModes.PIECE_CHOOSE;
-                        choosen = null;
+                        if (cell.classList.contains('cell_choosen')) {
 
-                    } else {
+                            cell.classList.remove('cell_choosen');
+                            moveMode = MoveModes.PIECE_CHOOSE;
+                            choosen = null;
 
-                        piece = cell.getElementsByClassName('piece')[0];
-
-                        if ((piece && piece.dataset.color == choosen.piece.dataset.color) ||
-                            !checkPieceMove(
-                                choosen.piece.dataset.type,
-                                choosen.piece.dataset.color,
-                                {
-                                    x: Number(choosen.cell.dataset.x),
-                                    y: Number(choosen.cell.dataset.y)
-                                },
-                                {
-                                    x: Number(cell.dataset.x),
-                                    y: Number(cell.dataset.y)
-                                },
-                                !Number(choosen.piece.dataset.moved),
-                                piece
-                            )
-                        ) {
-                            alert('You can\'t move the piece to this cell!');
                         } else {
 
-                            kingDanger = checkKingDanger(choosen.piece.dataset.color,
-                                {
-                                    piece: choosen.piece,
-                                    cell: cell
-                                },
-                                piece
-                            );
+                            piece = cell.getElementsByClassName('piece')[0];
 
-                            if (kingDanger.check || kingDanger.stalemate) {
-                                alert('You can\'t move the piece to this cell because your will have check!');
+                            if ((piece && piece.dataset.color == choosen.piece.dataset.color) ||
+                                !checkPieceMove(
+                                    choosen.piece.dataset.type,
+                                    choosen.piece.dataset.color,
+                                    {
+                                        x: Number(choosen.cell.dataset.x),
+                                        y: Number(choosen.cell.dataset.y)
+                                    },
+                                    {
+                                        x: Number(cell.dataset.x),
+                                        y: Number(cell.dataset.y)
+                                    },
+                                    !Number(choosen.piece.dataset.moved),
+                                    piece
+                                )
+                            ) {
+                                alert('You can\'t move the piece to this cell!');
                             } else {
-                                choosen.piece.dataset.moved = 1;
-                                cell.appendChild(choosen.piece);
-                                choosen.cell.classList.remove('cell_choosen');
 
-                                if (piece) {
-                                    isWhiteTurn
-                                        ? whiteCatches.push(piece.dataset.type)
-                                        : blackCatches.push(piece.dataset.type);
-                                    renderCatches();
-                                    piece.parentNode.removeChild(piece);
-                                }
+                                kingDanger = checkKingDanger(choosen.piece.dataset.color,
+                                    {
+                                        piece: choosen.piece,
+                                        cell: cell
+                                    },
+                                    piece
+                                );
 
-                                choosen = null;
-
-                                opponentKingDanger = checkKingDanger(isWhiteTurn ? 'black' : 'white');
-                                if (opponentKingDanger.stalemate) {
-                                    isGameContinues = false;
-                                    alert(isWhiteTurn ? 'Whites won!' : 'Blacks won!');
-
+                                if (kingDanger.check || kingDanger.stalemate) {
+                                    alert('You can\'t move the piece to this cell because your will have check!');
                                 } else {
-                                    check = opponentKingDanger.check;
+                                    choosen.piece.dataset.moved = 1;
+                                    cell.appendChild(choosen.piece);
+                                    choosen.cell.classList.remove('cell_choosen');
 
-                                    if (check) {
-                                        alert(isWhiteTurn ? 'Blacks have check!' : 'Whites have check!');
+                                    if (piece) {
+                                        isWhiteTurn
+                                            ? whiteCatches.push(piece.dataset.type)
+                                            : blackCatches.push(piece.dataset.type);
+                                        renderCatches();
+                                        piece.parentNode.removeChild(piece);
                                     }
 
-                                    moveMode = MoveModes.PIECE_CHOOSE;
-                                    isWhiteTurn = !isWhiteTurn;
+                                    choosen = null;
 
-                                    renderTurnInfo();
+                                    opponentKingDanger = checkKingDanger(isWhiteTurn ? 'black' : 'white');
+                                    if (opponentKingDanger.stalemate) {
+                                        isGameContinues = false;
+                                        alert(isWhiteTurn ? 'Whites won!' : 'Blacks won!');
+
+                                    } else {
+                                        check = opponentKingDanger.check;
+
+                                        if (check) {
+                                            alert(isWhiteTurn ? 'Blacks have check!' : 'Whites have check!');
+                                        }
+
+                                        moveMode = MoveModes.PIECE_CHOOSE;
+                                        isWhiteTurn = !isWhiteTurn;
+
+                                        renderTurnInfo();
+                                    }
                                 }
                             }
                         }
@@ -236,6 +243,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     };
+
+    //----------------- coords ------------------------
 
     var getCellByCoords = function(coords) {
         return field.querySelector('#cell_' + coords.x + '_' + coords.y);
@@ -247,6 +256,8 @@ document.addEventListener('DOMContentLoaded', function() {
             y: coords.y + step[1]
         };
     };
+
+    //-------------------- moves --------------------
 
     var checkPieceMove = function(type, color, coords, nextCoords, isFirstMove, isFight) {
         var moves = generatePieceMoves(type, color, coords, isFirstMove, isFight),
@@ -313,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         return false;
-    }
+    };
 
     var addMoveToArray = function(moves, newMove) {
         if (!findMove(moves, newMove)) {
@@ -321,17 +332,54 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
+    var getPiecesMoves = function(pieces, color, moved, removed) {
+        var piece,
+            cell,
+            pieceMoves,
+            moves = [];
+
+        for (var i = 0; i < pieces.length; i++) {
+            piece = pieces[i];
+
+            if (removed != piece) {
+
+                cell = (moved && (piece == moved.piece) ? moved.cell : piece.parentNode);
+
+                pieceMoves = generatePieceMoves(
+                    piece.dataset.type,
+                    color,
+                    {
+                        x: Number(cell.dataset.x),
+                        y: Number(cell.dataset.y)
+                    },
+                    Number(piece.dataset.moved),
+                    true,
+                    moved,
+                    removed
+                );
+
+                for (var j = 0; j < pieceMoves.length; j++) {
+                    addMoveToArray(moves, pieceMoves[j]);
+                }
+            }
+        }
+
+        return moves;
+    };
+
+    //---------------------- king danger -------------------------
+
     //consider one removed piece and one moved piece
     var checkKingDanger = function(color, moved, removed) {
         var king,
             kingCell,
             opponentColor = (color == 'white' ? 'black' : 'white'),
             opponentPieces = field.querySelectorAll('.piece[data-color="' + opponentColor + '"]'),
+            opponentMoves,
+            pieces,
             piece,
-            cell,
-            opponentMoves = [],
-            opponentPieceMoves,
-            isStalemate,
+            pieceMoves,
+            moveCell,
             danger = {};
 
         if (moved &&
@@ -347,57 +395,78 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         //get all opponents moves
-        for (var i = 0; i < opponentPieces.length; i++) {
-            piece = opponentPieces[i];
-
-            if (removed != piece) {
-
-                cell = (moved && (piece == moved.piece) ? moved.cell : piece.parentNode);
-
-                opponentPieceMoves = generatePieceMoves(
-                    piece.dataset.type,
-                    opponentColor,
-                    {
-                        x: Number(cell.dataset.x),
-                        y: Number(cell.dataset.y)
-                    },
-                    Number(piece.dataset.moved),
-                    true,
-                    moved,
-                    removed
-                );
-
-                for (var j = 0; j < opponentPieceMoves.length; j++) {
-                    addMoveToArray(opponentMoves, opponentPieceMoves[j]);
-                }
-            }
-        }
-
-        //get king moves
-        kingMoves = generatePieceMoves(
-            'king',
-            color,
-            {
-                x: Number(kingCell.dataset.x),
-                y: Number(kingCell.dataset.y)
-            },
-            Number(king.dataset.moved),
-            moved,
-            removed
-        );
+        opponentMoves = getPiecesMoves(opponentPieces, opponentColor, moved, removed);
 
         //check danger
         if (findMove(opponentMoves, { x: Number(kingCell.dataset.x), y: Number(kingCell.dataset.y) })) {
             danger.check = true;
         }
 
-        danger.stalemate = !!kingMoves.length;
-        for (var i = 0; i < kingMoves.length; i++) {
-            danger.stalemate = isStalemate && findMove(opponentMoves, kingMoves[i]);
+        danger.stalemate = checkStalemate(king, kingCell, opponentPieces, moved, removed);
+
+        //check if we can block one of the opponent's pieces in next move
+        if (danger.stalemate) {
+            pieces = field.querySelectorAll('.piece[data-color="' + color + '"]');
+
+            for (var i = 0; i < pieces.length; i++) {
+                piece = pieces[i];
+
+                if (piece.dataset.type != 'king') {
+
+                    pieceMoves = generatePieceMoves(
+                        piece.dataset.type,
+                        color,
+                        {
+                            x: Number(piece.parentNode.dataset.x),
+                            y: Number(piece.parentNode.dataset.y)
+                        },
+                        Number(piece.dataset.moved),
+                        true
+                    );
+
+                    for (var j = 0; j < pieceMoves.length; j++) {
+                        moveCell = getCellByCoords(pieceMoves[j]);
+
+                        danger.stalemate = danger.stalemate && checkStalemate(king,
+                            kingCell,
+                            opponentPieces,
+                            { piece: piece, cell: moveCell },
+                            moveCell.getElementsByClassName('piece')[0]
+                        );
+                    }
+                }
+            }
         }
 
         return danger;
-    }
+    };
+
+    var checkStalemate = function(king, kingCell, opponentPieces, moved, removed) {
+
+        var kingMoves = generatePieceMoves(
+            'king',
+            king.dataset.color,
+            {
+                x: Number(kingCell.dataset.x),
+                y: Number(kingCell.dataset.y)
+            },
+            Number(king.dataset.moved),
+            true,
+            moved,
+            removed
+        );
+
+        var opponentMoves = getPiecesMoves(opponentPieces, (king.dataset.color == 'white' ? 'black' : 'white'), moved, removed);
+
+        var isStalemate = (kingMoves.length != 0);
+
+        //check danger of all of the king moves
+        for (var i = 0; i < kingMoves.length; i++) {
+            isStalemate = isStalemate && findMove(opponentMoves, kingMoves[i]);
+        }
+
+        return isStalemate;
+    };
 
     //----------------------- game -----------------------------
 
