@@ -73,76 +73,88 @@ Field.prototype.isValidCoords = function(coords) {
         (coords.y >= 1) && (coords.y <= 8);
 }
 
+Field.prototype.choosePiece = function(cell) {
+    var piece,
+        playerColor = (GAME.isWhiteTurn ? 'white' : 'black');
+
+    piece = this.getPieceByCoords({ x: cell.dataset.x, y: cell.dataset.y });
+
+    if (piece && piece.color == playerColor) {
+        cell.classList.add('cell_choosen');
+
+        this.moveMode = Field.MoveModes.CELL_CHOOSE;
+        this.choosenCell = cell;
+    }
+}
+
+Field.prototype.chooseCell = function(cell) {
+    var piece,
+        playerColor = (GAME.isWhiteTurn ? 'white' : 'black');
+
+    if (cell == this.choosenCell) {
+        cell.classList.remove('cell_choosen');
+        this.moveMode = Field.MoveModes.PIECE_CHOOSE;
+        this.choosenCell = null;
+
+    } else {
+        opponentPiece = this.getPieceByCoords({ x: cell.dataset.x, y: cell.dataset.y });
+        choosenPiece = this.getPieceByCoords({ x: this.choosenCell.dataset.x, y: this.choosenCell.dataset.y })
+
+        if ((opponentPiece && opponentPiece.color == playerColor) ||
+            !choosenPiece.checkMove(
+                {
+                    x: Number(this.choosenCell.dataset.x),
+                    y: Number(this.choosenCell.dataset.y)
+                },
+                {
+                    x: Number(cell.dataset.x),
+                    y: Number(cell.dataset.y)
+                },
+                !!opponentPiece
+            )
+        ) {
+            alert('You can\'t move the piece to this cell!');
+        } else {
+
+            choosenPiece.moved = true;
+            cell.innerHTML = choosenPiece.getHtml();
+
+            this.addPieceToMap({
+                x: Number(this.choosenCell.dataset.x),
+                y: Number(this.choosenCell.dataset.y)
+            }, null);
+
+            this.addPieceToMap({
+                x: Number(cell.dataset.x),
+                y: Number(cell.dataset.y)
+            }, choosenPiece);
+
+            this.choosenCell.classList.remove('cell_choosen');
+
+            if (opponentPiece) {
+                GAME.addCatch(opponentPiece);
+            }
+
+            this.choosenCell.innerHTML = '';
+            this.choosenCell = null;
+            this.moveMode = Field.MoveModes.PIECE_CHOOSE;
+            GAME.changePlayer();
+            GAME.renderTurnInfo();
+        }
+    }
+}
+
 Field.prototype.onCellClick = function(cell) {
     var piece,
         playerColor = (GAME.isWhiteTurn ? 'white' : 'black');
 
     if (this.moveMode == Field.MoveModes.PIECE_CHOOSE) {
-        piece = this.getPieceByCoords({ x: cell.dataset.x, y: cell.dataset.y });
-
-        if (piece && piece.color == playerColor) {
-            cell.classList.add('cell_choosen');
-
-            this.moveMode = Field.MoveModes.CELL_CHOOSE;
-            this.choosenCell = cell;
-        }
-
+        this.choosePiece(cell);
         return;
     }
 
     if (this.moveMode == Field.MoveModes.CELL_CHOOSE) {
-
-        if (cell == this.choosenCell) {
-            cell.classList.remove('cell_choosen');
-            this.moveMode = Field.MoveModes.PIECE_CHOOSE;
-            this.choosenCell = null;
-
-        } else {
-            opponentPiece = this.getPieceByCoords({ x: cell.dataset.x, y: cell.dataset.y });
-            choosenPiece = this.getPieceByCoords({ x: this.choosenCell.dataset.x, y: this.choosenCell.dataset.y })
-
-            if ((opponentPiece && opponentPiece.color == playerColor) ||
-                !choosenPiece.checkMove(
-                    {
-                        x: Number(this.choosenCell.dataset.x),
-                        y: Number(this.choosenCell.dataset.y)
-                    },
-                    {
-                        x: Number(cell.dataset.x),
-                        y: Number(cell.dataset.y)
-                    },
-                    !!opponentPiece
-                )
-            ) {
-                alert('You can\'t move the piece to this cell!');
-            } else {
-
-                choosenPiece.moved = true;
-                cell.innerHTML = choosenPiece.getHtml();
-
-                this.addPieceToMap({
-                    x: Number(this.choosenCell.dataset.x),
-                    y: Number(this.choosenCell.dataset.y)
-                }, null);
-
-                this.addPieceToMap({
-                    x: Number(cell.dataset.x),
-                    y: Number(cell.dataset.y)
-                }, choosenPiece);
-
-                this.choosenCell.classList.remove('cell_choosen');
-
-                if (opponentPiece) {
-                    GAME.addCatch(opponentPiece);
-                }
-
-                this.choosenCell.innerHTML = '';
-                this.choosenCell = null;
-                this.moveMode = Field.MoveModes.PIECE_CHOOSE;
-                GAME.changePlayer();
-                GAME.renderTurnInfo();
-            }
-        }
+        this.chooseCell(cell);
     }
 }
 
